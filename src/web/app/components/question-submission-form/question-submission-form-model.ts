@@ -51,6 +51,7 @@ export interface QuestionSubmissionFormModel {
   isLoading: boolean;
   isLoaded: boolean;
   isTabExpanded: boolean;
+  isResponseChanged: boolean;
 }
 
 /**

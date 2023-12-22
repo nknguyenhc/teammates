@@ -100,6 +100,7 @@
                                  (deleteCommentEvent)="deleteParticipantComment(i, $event)"
                                  [isQuestionCountOne]="isQuestionCountOne"
                                  [(isSubmitAllClicked)]="isSubmitAllClicked"
+                                 (formModelChange)="triggerModelChange($event)"
     ></tm-question-submission-form>
 
     <div class="row" *ngIf="questionsNeedingSubmission.length === 0">

@@ -1511,6 +1511,7 @@ export const EXAMPLE_RESPONDER_RUBRIC_SUBMISSION_FORM_MODEL: QuestionSubmissionF
   isLoading: false,
   isLoaded: true,
   isTabExpanded: true,
+  isResponseChanged: false,
   recipientList: [
     {
       recipientIdentifier: 'alice',

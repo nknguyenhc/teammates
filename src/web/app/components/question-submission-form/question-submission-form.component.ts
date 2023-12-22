@@ -102,6 +102,7 @@ export class QuestionSubmissionFormComponent implements DoCheck {
     isLoading: false,
     isLoaded: false,
     isTabExpanded: true,
+    isResponseChanged: false,
     feedbackQuestionId: '',
 
     questionNumber: 0,
@@ -181,6 +182,7 @@ export class QuestionSubmissionFormComponent implements DoCheck {
 
   toggleQuestionTab(): void {
     this.model.isTabExpanded = !this.model.isTabExpanded;
+    this.model.isResponseChanged = false;
     this.formModelChange.emit(this.model);
   }
 
@@ -300,6 +302,7 @@ export class QuestionSubmissionFormComponent implements DoCheck {
         ...this.model.recipientSubmissionForms[index],
         [field]: data,
       };
+      this.model.isResponseChanged = true;
 
       this.updateIsValidByQuestionConstraint();
       this.formModelChange.emit(this.model);
