@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, TemplateRef, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, OnInit, TemplateRef, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
 import { forkJoin, Observable, of } from 'rxjs';
@@ -74,6 +74,8 @@ import {
   CopyQuestionsFromOtherSessionsModalComponent,
 } from './copy-questions-from-other-sessions-modal/copy-questions-from-other-sessions-modal.component';
 import { TemplateQuestionModalComponent } from './template-question-modal/template-question-modal.component';
+import { ComponentCanDeactivate } from '../../guards/edit.guard';
+import { TrackEditService } from 'src/web/services/track-edit.service';
 
 /**
  * Instructor feedback session edit page.
@@ -83,7 +85,7 @@ import { TemplateQuestionModalComponent } from './template-question-modal/templa
   templateUrl: './instructor-session-edit-page.component.html',
   styleUrls: ['./instructor-session-edit-page.component.scss'],
 })
-export class InstructorSessionEditPageComponent extends InstructorSessionBasePageComponent implements OnInit {
+export class InstructorSessionEditPageComponent extends InstructorSessionBasePageComponent implements OnInit, ComponentCanDeactivate {
 
   // enum
   SessionEditFormMode: typeof SessionEditFormMode = SessionEditFormMode;
@@ -157,6 +159,12 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
   instructorsOfCourse: Instructor[] = [];
   emailOfInstructorToPreview: string = '';
 
+  // track edits
+  private editService = new TrackEditService();
+  private readonly SESSION_EDIT_ID = 'session';
+  private readonly QUESTION_EDIT_ID = 'question_';
+  private readonly NEW_QUESTION_EDIT_ID = 'new_question';
+
   get isAllCollapsed(): boolean {
     return this.questionEditFormModels.some((model: QuestionEditFormModel) => {
       return model.isCollapsed;
@@ -197,6 +205,11 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
       this.getAllStudentsOfCourse();
       this.getAllInstructors();
     });
+  }
+
+  @HostListener('window:beforeunload')
+  canDeactivate(): boolean {
+    return !this.editService.isAnyFieldBeingEdited();
   }
 
   /**
@@ -360,6 +373,7 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
    * Handles editing existing session event.
    */
   editExistingSessionHandler(): void {
+    this.editService.removeField(this.SESSION_EDIT_ID);
     this.feedbackSessionModelBeforeEditing = JSON.parse(JSON.stringify(this.sessionEditFormModel));
 
     const submissionStartTime: number = this.timezoneService.resolveLocalDateTime(
@@ -461,6 +475,11 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
     });
   }
 
+  override triggerModelChange(data: SessionEditFormModel): void {
+    super.triggerModelChange(data);
+    this.editService.addField(this.SESSION_EDIT_ID);
+  }
+
   private getIndividualDeadlinesToDelete(submissionEndTimestamp: number): [
     Record<string, number>, Record<string, number>,
   ] {
@@ -505,6 +524,7 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
    */
   cancelEditingSessionHandler(): void {
     this.sessionEditFormModel = JSON.parse(JSON.stringify(this.feedbackSessionModelBeforeEditing));
+    this.editService.removeField(this.SESSION_EDIT_ID);
   }
 
   /**
@@ -512,6 +532,7 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
    */
   deleteExistingSessionHandler(): void {
     this.sessionEditFormModel.isDeleting = true;
+    this.editService.removeAllFields();
     this.feedbackSessionsService.moveSessionToRecycleBin(this.courseId, this.feedbackSessionName)
       .pipe(finalize(() => {
         this.sessionEditFormModel.isDeleting = false;
@@ -659,6 +680,7 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
             this.questionEditFormModels[index] = this.getQuestionEditFormModel(updatedQuestion);
             this.feedbackQuestionModels.set(updatedQuestion.feedbackQuestionId, updatedQuestion);
             this.loadResponseStatusForQuestion(this.questionEditFormModels[index]);
+            this.editService.removeField(this.QUESTION_EDIT_ID + questionEditFormModel.feedbackQuestionId);
 
             // shift question if needed
             if (originalQuestionNumber !== updatedQuestion.questionNumber) {
@@ -714,6 +736,7 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
    */
   discardExistingQuestionHandler(index: number): void {
     const questionEditFormModel: QuestionEditFormModel = this.questionEditFormModels[index];
+    this.editService.removeField(this.QUESTION_EDIT_ID + questionEditFormModel.feedbackQuestionId);
     const feedbackQuestion: FeedbackQuestion =
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         this.feedbackQuestionModels.get(questionEditFormModel.feedbackQuestionId)!;
@@ -781,6 +804,7 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
           .subscribe({
             next: () => {
               // remove form model
+              this.editService.removeField(this.QUESTION_EDIT_ID + questionEditFormModel.feedbackQuestionId);
               this.feedbackQuestionModels.delete(questionEditFormModel.feedbackQuestionId);
               this.questionEditFormModels.splice(index, 1);
               this.normalizeQuestionNumberInQuestionForms();
@@ -792,6 +816,12 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
             },
           });
     }, () => {});
+  }
+
+  triggerQuestionChange(event: QuestionEditFormModel) {
+    if (event.isFeedbackPathChanged || event.isQuestionDetailsChanged || event.isVisibilityChanged) {
+      this.editService.addField(this.QUESTION_EDIT_ID + event.feedbackQuestionId);
+    }
   }
 
   /**
@@ -852,6 +882,7 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
    */
   populateAndShowNewQuestionForm(type: FeedbackQuestionType): void {
     this.isAddingQuestionPanelExpanded = true;
+    this.editService.addField(this.NEW_QUESTION_EDIT_ID);
 
     const newQuestionModel: NewQuestionModel =
         this.feedbackQuestionsService.getNewQuestionModel(type);
@@ -963,6 +994,14 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
   }
 
   /**
+   * Discards creating a new question.
+   */
+  discardNewQuestion(): void {
+    this.isAddingQuestionPanelExpanded = false;
+    this.editService.removeField(this.NEW_QUESTION_EDIT_ID);
+  }
+
+  /**
    * Creates a new question.
    */
   createNewQuestionHandler(): void {
@@ -994,6 +1033,7 @@ export class InstructorSessionEditPageComponent extends InstructorSessionBasePag
           next: (newQuestion: FeedbackQuestion) => {
             this.questionEditFormModels.push(this.getQuestionEditFormModel(newQuestion));
             this.feedbackQuestionModels.set(newQuestion.feedbackQuestionId, newQuestion);
+            this.editService.removeField(this.NEW_QUESTION_EDIT_ID);
 
             this.moveQuestionForm(
                 this.questionEditFormModels.length - 1, newQuestion.questionNumber - 1);
