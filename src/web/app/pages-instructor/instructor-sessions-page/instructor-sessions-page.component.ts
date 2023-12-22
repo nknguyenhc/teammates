@@ -1,4 +1,4 @@
-import { Component, OnInit, TemplateRef, ViewChild } from '@angular/core';
+import { Component, HostListener, OnInit, TemplateRef, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
 import moment from 'moment-timezone';
@@ -28,7 +28,7 @@ import {
 import { DEFAULT_INSTRUCTOR_PRIVILEGE } from '../../../types/default-instructor-privilege';
 import { SortBy, SortOrder } from '../../../types/sort-properties';
 import {
-  SessionEditFormMode,
+  SessionEditFormMode, SessionEditFormModel,
 } from '../../components/session-edit-form/session-edit-form-model';
 import {
   CopySessionResult,
@@ -54,6 +54,8 @@ import {
 import {
   SessionsPermanentDeletionConfirmModalComponent,
 } from './sessions-permanent-deletion-confirm-modal/sessions-permanent-deletion-confirm-modal.component';
+import { ComponentCanDeactivate } from '../../guards/edit.guard';
+import { TrackEditService } from 'src/web/services/track-edit.service';
 
 interface RecycleBinFeedbackSessionRowModel {
   feedbackSession: FeedbackSession;
@@ -67,7 +69,7 @@ interface RecycleBinFeedbackSessionRowModel {
   styleUrls: ['./instructor-sessions-page.component.scss'],
   animations: [collapseAnim],
 })
-export class InstructorSessionsPageComponent extends InstructorSessionModalPageComponent implements OnInit {
+export class InstructorSessionsPageComponent extends InstructorSessionModalPageComponent implements OnInit, ComponentCanDeactivate {
 
   // enum
   SortBy: typeof SortBy = SortBy;
@@ -102,6 +104,9 @@ export class InstructorSessionsPageComponent extends InstructorSessionModalPageC
   isPermanentDeleteLoading: boolean = false;
   hasCourseLoadingFailed: boolean = false;
   hasFeedbackSessionLoadingFailed: boolean = false;
+
+  private editService: TrackEditService = new TrackEditService();
+  private readonly ADD_FORM_EDIT_ID = 'add_form';
 
   @ViewChild('modifiedTimestampsModal') modifiedTimestampsModal!: TemplateRef<any>;
 
@@ -143,6 +148,11 @@ export class InstructorSessionsPageComponent extends InstructorSessionModalPageC
     this.loadRecycleBinFeedbackSessions();
   }
 
+  @HostListener('window:beforeunload')
+  canDeactivate(): boolean {
+    return !this.editService.isAnyFieldBeingEdited();
+  }
+
   /**
    * Copies from other sessions.
    */
@@ -166,6 +176,7 @@ export class InstructorSessionsPageComponent extends InstructorSessionModalPageC
           }))
           .subscribe({
             next: (createdFeedbackSession: FeedbackSession) => {
+              this.editService.removeField(this.ADD_FORM_EDIT_ID);
               if (this.coursesOfModifiedSession.length > 0) {
                 this.simpleModalService.openInformationModal('Note On Tweaked Session Timestamps',
                     SimpleModalType.WARNING, this.modifiedTimestampsModal,
@@ -262,6 +273,11 @@ export class InstructorSessionsPageComponent extends InstructorSessionModalPageC
     };
   }
 
+  override triggerModelChange(data: SessionEditFormModel): void {
+    super.triggerModelChange(data);
+    this.editService.addField(this.ADD_FORM_EDIT_ID);
+  }
+
   /**
    * Adds a new feedback session.
    */
@@ -305,6 +321,7 @@ export class InstructorSessionsPageComponent extends InstructorSessionModalPageC
       isPublishedEmailEnabled: this.sessionEditFormModel.isPublishedEmailEnabled,
     }).subscribe({
       next: (feedbackSession: FeedbackSession) => {
+        this.editService.removeField(this.ADD_FORM_EDIT_ID);
 
         // begin to populate session with template
         const templateSession: TemplateSession | undefined =
