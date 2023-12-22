@@ -547,6 +547,14 @@ export class InstructorSessionsPageComponent extends InstructorSessionModalPageC
   }
 
   /**
+   * Closes the form to add a new session.
+   */
+  closeAddForm() {
+    this.isSessionEditFormExpanded = false;
+    this.editService.removeField(this.ADD_FORM_EDIT_ID);
+  }
+
+  /**
    * Submits the feedback session as instructor.
    */
   submitSessionAsInstructorEventHandler(rowIndex: Index): void {
