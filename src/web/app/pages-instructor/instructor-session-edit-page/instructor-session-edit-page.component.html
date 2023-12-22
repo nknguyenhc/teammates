@@ -24,6 +24,7 @@
         (discardExistingQuestionChangesEvent)="discardExistingQuestionHandler(i)"
         (duplicateCurrentQuestionEvent)="duplicateCurrentQuestionHandler(i)"
         (deleteCurrentQuestionEvent)="deleteExistingQuestionHandler(i)" [(formModel)]="questionEditFormModels[i]"
+        (formModelChange)="triggerQuestionChange($event)"
         [isQuestionPublished]="sessionEditFormModel.publishStatus === FeedbackSessionPublishStatus.PUBLISHED"></tm-question-edit-form>
     </div>
     <a class="d-block text-end cursor-pointer" (click)="scrollToTopOfPage()">
@@ -40,7 +41,7 @@
   </div>
   <tm-question-edit-form *ngIf="isAddingQuestionPanelExpanded" [formMode]="QuestionEditFormMode.ADD"
     [numOfQuestions]="questionEditFormModels.length + 1"
-    (discardNewQuestionEvent)="isAddingQuestionPanelExpanded = false"
+    (discardNewQuestionEvent)="discardNewQuestion()"
     (createNewQuestionEvent)="createNewQuestionHandler()"
     [(formModel)]="newQuestionEditFormModel"></tm-question-edit-form>
   <br />

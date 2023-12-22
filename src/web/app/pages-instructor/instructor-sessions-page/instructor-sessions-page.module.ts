@@ -25,11 +25,13 @@ import {
 import {
   SessionsPermanentDeletionConfirmModalComponent,
 } from './sessions-permanent-deletion-confirm-modal/sessions-permanent-deletion-confirm-modal.component';
+import { EditGuard } from '../../guards/edit.guard';
 
 const routes: Routes = [
   {
     path: '',
     component: InstructorSessionsPageComponent,
+    canDeactivate: [EditGuard],
   },
 ];
 

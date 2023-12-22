@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { AfterViewInit, Component, Inject, OnInit } from '@angular/core';
+import { AfterViewInit, Component, HostListener, Inject, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
 import { PageScrollService } from 'ngx-page-scroll-core';
@@ -52,6 +52,8 @@ import {
 import { SimpleModalType } from '../../components/simple-modal/simple-modal-type';
 import { ErrorMessageOutput } from '../../error-message-output';
 import { SavingCompleteModalComponent } from './saving-complete-modal/saving-complete-modal.component';
+import { TrackEditService } from 'src/web/services/track-edit.service';
+import { ComponentCanDeactivate } from '../../guards/edit.guard';
 
 interface FeedbackQuestionsResponse {
   questions: FeedbackQuestion[];
@@ -65,7 +67,7 @@ interface FeedbackQuestionsResponse {
   templateUrl: './session-submission-page.component.html',
   styleUrls: ['./session-submission-page.component.scss'],
 })
-export class SessionSubmissionPageComponent implements OnInit, AfterViewInit {
+export class SessionSubmissionPageComponent implements OnInit, AfterViewInit, ComponentCanDeactivate {
 
   // enum
   FeedbackSessionSubmissionStatus: typeof FeedbackSessionSubmissionStatus = FeedbackSessionSubmissionStatus;
@@ -112,6 +114,8 @@ export class SessionSubmissionPageComponent implements OnInit, AfterViewInit {
   isSubmitAllClicked: boolean = false;
 
   private backendUrl: string = environment.backendUrl;
+
+  private editService: TrackEditService = new TrackEditService();
 
   constructor(private route: ActivatedRoute,
               private statusMessageService: StatusMessageService,
@@ -220,6 +224,11 @@ export class SessionSubmissionPageComponent implements OnInit, AfterViewInit {
         },
       });
     });
+  }
+
+  @HostListener('window:beforeunload')
+  canDeactivate(): boolean {
+    return !this.editService.isAnyFieldBeingEdited();
   }
 
   // Solution for checking partial element visibility adapted from
@@ -478,6 +487,7 @@ export class SessionSubmissionPageComponent implements OnInit, AfterViewInit {
                 isLoading: false,
                 isLoaded: false,
                 isTabExpanded: true,
+                isResponseChanged: false,
                 feedbackQuestionId: feedbackQuestion.feedbackQuestionId,
 
                 questionNumber: feedbackQuestion.questionNumber,
@@ -762,6 +772,7 @@ export class SessionSubmissionPageComponent implements OnInit, AfterViewInit {
                   });
                   requestIds[questionSubmissionFormModel.feedbackQuestionId] = resp.requestId || '';
 
+                  this.editService.removeField(questionSubmissionFormModel.feedbackQuestionId);
                   questionSubmissionFormModel.recipientSubmissionForms
                       .forEach((recipientSubmissionFormModel: FeedbackResponseRecipientSubmissionFormModel) => {
                         if (responsesMap[recipientSubmissionFormModel.recipientIdentifier]) {
@@ -915,6 +926,12 @@ export class SessionSubmissionPageComponent implements OnInit, AfterViewInit {
             this.statusMessageService.showErrorToast(resp.error.message);
           },
         });
+  }
+
+  triggerModelChange(data: QuestionSubmissionFormModel) {
+    if (data.isResponseChanged) {
+      this.editService.addField(data.feedbackQuestionId);
+    }
   }
 
   retryLoadingFeedbackSessionQuestions(): void {

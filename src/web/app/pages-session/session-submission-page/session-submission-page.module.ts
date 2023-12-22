@@ -13,11 +13,13 @@ import {
 import { TeammatesCommonModule } from '../../components/teammates-common/teammates-common.module';
 import { SavingCompleteModalComponent } from './saving-complete-modal/saving-complete-modal.component';
 import { SessionSubmissionPageComponent } from './session-submission-page.component';
+import { EditGuard } from '../../guards/edit.guard';
 
 const routes: Routes = [
   {
     path: '',
     component: SessionSubmissionPageComponent,
+    canDeactivate: [EditGuard],
   },
 ];
 

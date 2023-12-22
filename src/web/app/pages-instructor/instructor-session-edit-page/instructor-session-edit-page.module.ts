@@ -24,11 +24,13 @@ import {
 } from './copy-questions-from-other-sessions-modal/copy-questions-from-other-sessions-modal.component';
 import { InstructorSessionEditPageComponent } from './instructor-session-edit-page.component';
 import { TemplateQuestionModalComponent } from './template-question-modal/template-question-modal.component';
+import { EditGuard } from '../../guards/edit.guard';
 
 const routes: Routes = [
   {
     path: '',
     component: InstructorSessionEditPageComponent,
+    canDeactivate: [EditGuard],
   },
 ];
 
